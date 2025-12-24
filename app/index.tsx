@@ -8,7 +8,6 @@ import * as Haptics from "expo-haptics";
 import { SpeakableProvider, SpeakableText, useReadScreen } from "./components/SpeakableProvider";
 import { Video, ResizeMode } from "expo-av";
 
-
 function HomeContent({ go }: { go: (path: Href) => void }) {
   const { readScreen, stop } = useReadScreen();
 

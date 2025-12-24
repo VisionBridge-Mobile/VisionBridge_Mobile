@@ -1,7 +1,7 @@
 // app/module.tsx
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, findNodeHandle, Vibration } from "react-native";
-import { router, Stack } from "expo-router";
+import { View, Text, Pressable, StyleSheet, findNodeHandle } from "react-native";
+import { router, Stack, Href } from "expo-router";
 import { Directions, Gesture, GestureDetector } from "react-native-gesture-handler";
 import { runOnJS } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
@@ -16,81 +16,103 @@ const MODULES: Mod[] = [
   { id: "m5", title: "Help & Tips", subtitle: "Shortcuts and gestures" },
 ];
 
+/**
+ * Route mapping:
+ * - Quizzes -> your Lesson Player & Audio Quiz Engine
+ * - (Optional) Lessons can also map to same route if desired
+ */
+const MODULE_ROUTES: Record<string, Href> = {
+  m4: "/karunarathne_lesson_quiz",
+  // m3: "/karunarathne_lesson_quiz", // uncomment if Lessons should open it too
+};
+
 export default function ModulesScreen() {
   const [focusedIndex, setFocusedIndex] = useState<number>(-1);
   const speakingRef = useRef(false);
 
-  // store layout info for container and children
+  // Layout tracking
   const containerRef = useRef<View | null>(null);
   const containerAbsRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const itemLayoutsRef = useRef<Record<number, { x: number; y: number; width: number; height: number }>>({});
-  const itemRefs = useRef<Array<View | null>>(Array(MODULES.length).fill(null));
 
-  // prevent repeated announcements while finger remains on same item
+  // Prevent repeated announcements
   const lastAnnouncedRef = useRef<number>(-1);
   const lastAnnouncedTimeRef = useRef<number>(0);
-  const ANNOUNCE_MIN_MS = 6000; // minimum ms between announcements for same item
+  const ANNOUNCE_MIN_MS = 6000;
 
+  /* -------------------- Speech helper -------------------- */
   const safeSpeak = useCallback(async (text: string) => {
     if (!text) return;
     try {
-      if (speakingRef.current) {
-        Speech.stop();
-      }
+      if (speakingRef.current) Speech.stop();
       speakingRef.current = true;
-      // small haptic before speaking
-      try {
-        await Haptics.selectionAsync();
-      } catch {}
+      try { await Haptics.selectionAsync(); } catch { }
       Speech.speak(text, {
         language: "en-US",
         pitch: 1.0,
         rate: 1.0,
-        onDone: () => { speakingRef.current = false; },
-        onStopped: () => { speakingRef.current = false; },
-        onError: () => { speakingRef.current = false; },
+        onDone: () => { speakingRef.current = false; return; },
+        onStopped: () => { speakingRef.current = false; return; },
+        onError: (_e) => { speakingRef.current = false; return; },
       });
+
     } catch {
       speakingRef.current = false;
     }
   }, []);
 
-  const focusAndAnnounce = useCallback((index: number) => {
-    if (index < 0 || index >= MODULES.length) return;
-    setFocusedIndex(index);
-    safeSpeak(MODULES[index].title);
-  }, [safeSpeak]);
+  /* -------------------- Focus + announce -------------------- */
+  const focusAndAnnounce = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= MODULES.length) return;
+      setFocusedIndex(index);
+      safeSpeak(MODULES[index].title);
+    },
+    [safeSpeak]
+  );
 
-  // navigation
+  /* -------------------- Navigate to module -------------------- */
+  const goToModule = useCallback(
+    (idx: number) => {
+      const mod = MODULES[idx];
+      const route = MODULE_ROUTES[mod.id];
+      if (!route) return;
+
+      try { Speech.stop(); } catch { }
+      Haptics.selectionAsync().catch(() => { });
+      safeSpeak(`Opening ${mod.title}.`);
+
+      setTimeout(() => {
+        router.push(route);
+      }, 500);
+    },
+    [safeSpeak]
+  );
+
+  /* -------------------- Home navigation -------------------- */
   const goHome = useCallback(() => {
-    try { Speech.stop(); } catch {}
-   // vibrate 200ms
-
-    Haptics.selectionAsync().catch(() => {});
+    try { Speech.stop(); } catch { }
+    Haptics.selectionAsync().catch(() => { });
     router.push("/");
   }, []);
 
-  // measure container absolute position each time layout changes
+  /* -------------------- Layout measurement -------------------- */
   const measureContainer = () => {
     const node = containerRef.current ? findNodeHandle(containerRef.current) : null;
     if (!node) return;
-    // @ts-ignore measure is available on native node handle
-    // measure returns (fx, fy, w, h, px, py)
-    (containerRef.current as any).measure?.((fx: number, fy: number, width: number, height: number, px: number, py: number) => {
-      containerAbsRef.current = { x: px, y: py, width, height };
-    });
+    (containerRef.current as any).measure?.(
+      (_fx: number, _fy: number, width: number, height: number, px: number, py: number) => {
+        containerAbsRef.current = { x: px, y: py, width, height };
+      }
+    );
   };
 
-  // when a child layout changes, store layout relative to container (we use native onLayout values)
   const onItemLayout = (idx: number, e: any) => {
-    // e.nativeEvent.layout gives x,y relative to immediate parent (our list container)
     const { x, y, width, height } = e.nativeEvent.layout;
     itemLayoutsRef.current[idx] = { x, y, width, height };
-    // measure container absolute too (defensive)
     measureContainer();
   };
 
-  // call this to announce when finger enters a module
   const announceIndex = (idx: number) => {
     const now = Date.now();
     if (idx === lastAnnouncedRef.current && now - lastAnnouncedTimeRef.current < ANNOUNCE_MIN_MS) {
@@ -98,18 +120,16 @@ export default function ModulesScreen() {
     }
     lastAnnouncedRef.current = idx;
     lastAnnouncedTimeRef.current = now;
-    // haptic + TTS
-    Haptics.selectionAsync().catch(() => {});
+    Haptics.selectionAsync().catch(() => { });
     safeSpeak(MODULES[idx].title);
     setFocusedIndex(idx);
   };
 
-  // handle continuous move: pageX, pageY are absolute coordinates on screen
   const handleMove = (pageX?: number, pageY?: number) => {
     if (pageX == null || pageY == null) return;
     const cont = containerAbsRef.current;
     if (!cont) return;
-    // Test every item: compute absolute rect = container px/py + child relative x/y
+
     for (let i = 0; i < MODULES.length; i++) {
       const child = itemLayoutsRef.current[i];
       if (!child) continue;
@@ -118,56 +138,48 @@ export default function ModulesScreen() {
       const right = left + child.width;
       const bottom = top + child.height;
       if (pageX >= left && pageX <= right && pageY >= top && pageY <= bottom) {
-        // finger currently over item i
         runOnJS(announceIndex)(i);
-        return; // announce first matched (stop looping)
+        return;
       }
     }
-    // if no item matched, reset lastAnnounced so next entry will announce
     lastAnnouncedRef.current = -1;
   };
 
   const handleEnd = () => {
-    // reset so next swipe announces again
     lastAnnouncedRef.current = -1;
   };
 
-  // Pan gesture to track finger across the entire screen
- const pan = useMemo(() =>
-  Gesture.Pan()
-    .minPointers(1)
-    .onUpdate((e: any) => {
-      const px = (e as any).absoluteX ?? (e as any).x ?? (e as any).pageX;
-      const py = (e as any).absoluteY ?? (e as any).y ?? (e as any).pageY;
-      runOnJS(handleMove)(px, py);
-    })
-    .onEnd(() => {
-      runOnJS(handleEnd)();
-    })
-    .onFinalize(() => {   // ✅ use onFinalize instead of onCancel
-      runOnJS(handleEnd)();
-    }), []
-);
+  /* -------------------- Gestures -------------------- */
+  const pan = useMemo(
+    () =>
+      Gesture.Pan()
+        .minPointers(1)
+        .onUpdate((e: any) => {
+          const px = e.absoluteX ?? e.pageX;
+          const py = e.absoluteY ?? e.pageY;
+          runOnJS(handleMove)(px, py);
+        })
+        .onEnd(() => runOnJS(handleEnd)())
+        .onFinalize(() => runOnJS(handleEnd)()),
+    []
+  );
 
-  // left fling/back gesture (same as before)
   const back = useMemo(
     () =>
       Gesture.Fling()
         .direction(Directions.LEFT)
-        .onEnd(() => {
-          runOnJS(goHome)();
-        }),
+        .onEnd(() => runOnJS(goHome)()),
     [goHome]
   );
 
   const gestures = Gesture.Simultaneous(pan, back);
 
-  // ensure we measure container on mount/size change
   useEffect(() => {
     const t = setTimeout(() => measureContainer(), 200);
     return () => clearTimeout(t);
   }, []);
 
+  /* -------------------- UI -------------------- */
   return (
     <>
       <Stack.Screen options={{ title: "Modules" }} />
@@ -175,20 +187,18 @@ export default function ModulesScreen() {
         <View
           ref={containerRef}
           style={styles.container}
-          // onLayout also triggers container measurement
           onLayout={() => measureContainer()}
         >
-      
-
           <View style={styles.list}>
             {MODULES.map((m, idx) => {
               const focused = idx === focusedIndex;
               return (
                 <Pressable
                   key={m.id}
-                  // ref={(r) => (itemRefs.current[idx] = r)}
                   onLayout={(e) => onItemLayout(idx, e)}
-                  onPress={() => focusAndAnnounce(idx)}
+                  onPress={() => focusAndAnnounce(idx)}          // tap = announce
+                  onLongPress={() => goToModule(idx)}            // long press = open
+                  delayLongPress={400}
                   style={[styles.row, focused && styles.rowFocused]}
                   accessibilityRole="button"
                   accessibilityLabel={m.title}
@@ -202,7 +212,8 @@ export default function ModulesScreen() {
           </View>
 
           <Text style={styles.hint}>
-            Tip: Drag (swipe) your finger across the screen to explore — the app will speak and lightly vibrate each module as your finger passes over it. Swipe left anywhere to go back.
+            Tip: Drag your finger across the screen to explore. Tap to hear a module.
+            Long-press to open it. Swipe left anywhere to go back.
           </Text>
         </View>
       </GestureDetector>
@@ -210,11 +221,10 @@ export default function ModulesScreen() {
   );
 }
 
+/* -------------------- Styles -------------------- */
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "black", padding: 16, paddingStart: 20 },
-  header: { color: "white", fontSize: 20, fontWeight: "600", textAlign: "center", marginBottom: 12 },
-  list: { gap: 50
-    , marginTop: 6 },
+  list: { gap: 50, marginTop: 6 },
   row: {
     borderRadius: 14,
     paddingVertical: 30,
