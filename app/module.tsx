@@ -46,16 +46,28 @@ export default function ModulesScreen() {
     try {
       if (speakingRef.current) Speech.stop();
       speakingRef.current = true;
-      try { await Haptics.selectionAsync(); } catch { }
+      try {
+        await Haptics.selectionAsync();
+      } catch {
+        // ignore haptics errors
+      }
       Speech.speak(text, {
         language: "en-US",
         pitch: 1.0,
         rate: 1.0,
-        onDone: () => { speakingRef.current = false; return; },
-        onStopped: () => { speakingRef.current = false; return; },
-        onError: (_e) => { speakingRef.current = false; return; },
+        onDone: () => {
+          speakingRef.current = false;
+          return;
+        },
+        onStopped: () => {
+          speakingRef.current = false;
+          return;
+        },
+        onError: () => {
+          speakingRef.current = false;
+          return;
+        },
       });
-
     } catch {
       speakingRef.current = false;
     }
@@ -78,8 +90,12 @@ export default function ModulesScreen() {
       const route = MODULE_ROUTES[mod.id];
       if (!route) return;
 
-      try { Speech.stop(); } catch { }
-      Haptics.selectionAsync().catch(() => { });
+      try {
+        Speech.stop();
+      } catch {
+        // ignore
+      }
+      Haptics.selectionAsync().catch(() => {});
       safeSpeak(`Opening ${mod.title}.`);
 
       setTimeout(() => {
@@ -91,8 +107,12 @@ export default function ModulesScreen() {
 
   /* -------------------- Home navigation -------------------- */
   const goHome = useCallback(() => {
-    try { Speech.stop(); } catch { }
-    Haptics.selectionAsync().catch(() => { });
+    try {
+      Speech.stop();
+    } catch {
+      // ignore
+    }
+    Haptics.selectionAsync().catch(() => {});
     router.push("/");
   }, []);
 
@@ -100,6 +120,7 @@ export default function ModulesScreen() {
   const measureContainer = () => {
     const node = containerRef.current ? findNodeHandle(containerRef.current) : null;
     if (!node) return;
+
     (containerRef.current as any).measure?.(
       (_fx: number, _fy: number, width: number, height: number, px: number, py: number) => {
         containerAbsRef.current = { x: px, y: py, width, height };
@@ -113,41 +134,54 @@ export default function ModulesScreen() {
     measureContainer();
   };
 
-  const announceIndex = (idx: number) => {
-    const now = Date.now();
-    if (idx === lastAnnouncedRef.current && now - lastAnnouncedTimeRef.current < ANNOUNCE_MIN_MS) {
-      return;
-    }
-    lastAnnouncedRef.current = idx;
-    lastAnnouncedTimeRef.current = now;
-    Haptics.selectionAsync().catch(() => { });
-    safeSpeak(MODULES[idx].title);
-    setFocusedIndex(idx);
-  };
-
-  const handleMove = (pageX?: number, pageY?: number) => {
-    if (pageX == null || pageY == null) return;
-    const cont = containerAbsRef.current;
-    if (!cont) return;
-
-    for (let i = 0; i < MODULES.length; i++) {
-      const child = itemLayoutsRef.current[i];
-      if (!child) continue;
-      const left = cont.x + child.x;
-      const top = cont.y + child.y;
-      const right = left + child.width;
-      const bottom = top + child.height;
-      if (pageX >= left && pageX <= right && pageY >= top && pageY <= bottom) {
-        runOnJS(announceIndex)(i);
+  /* -------------------- Announce index under finger -------------------- */
+  const announceIndex = useCallback(
+    (idx: number) => {
+      const now = Date.now();
+      if (idx === lastAnnouncedRef.current && now - lastAnnouncedTimeRef.current < ANNOUNCE_MIN_MS) {
         return;
       }
-    }
-    lastAnnouncedRef.current = -1;
-  };
 
-  const handleEnd = () => {
+      lastAnnouncedRef.current = idx;
+      lastAnnouncedTimeRef.current = now;
+      Haptics.selectionAsync().catch(() => {});
+      safeSpeak(MODULES[idx].title);
+      setFocusedIndex(idx);
+    },
+    [safeSpeak]
+  );
+
+  /* -------------------- Pointer move & end handlers -------------------- */
+  const handleMove = useCallback(
+    (pageX?: number, pageY?: number) => {
+      if (pageX == null || pageY == null) return;
+      const cont = containerAbsRef.current;
+      if (!cont) return;
+
+      for (let i = 0; i < MODULES.length; i++) {
+        const child = itemLayoutsRef.current[i];
+        if (!child) continue;
+
+        const left = cont.x + child.x;
+        const top = cont.y + child.y;
+        const right = left + child.width;
+        const bottom = top + child.height;
+
+        if (pageX >= left && pageX <= right && pageY >= top && pageY <= bottom) {
+          runOnJS(announceIndex)(i);
+          return;
+        }
+      }
+
+      // finger is not over any item
+      lastAnnouncedRef.current = -1;
+    },
+    [announceIndex]
+  );
+
+  const handleEnd = useCallback(() => {
     lastAnnouncedRef.current = -1;
-  };
+  }, []);
 
   /* -------------------- Gestures -------------------- */
   const pan = useMemo(
@@ -161,7 +195,7 @@ export default function ModulesScreen() {
         })
         .onEnd(() => runOnJS(handleEnd)())
         .onFinalize(() => runOnJS(handleEnd)()),
-    []
+    [handleMove, handleEnd]
   );
 
   const back = useMemo(

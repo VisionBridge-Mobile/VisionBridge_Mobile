@@ -1,85 +1,115 @@
 import { QuizQuestion } from "../../data/datasetLoader";
-import { QuestionStats } from "./progressStore";
-import { sample } from "./randomUtils";
 import { SessionConfig } from "../models/sessionTypes";
-import { DifficultyState } from "./engagementEngine";
+import { StatsMap, QuestionStat } from "./progressStore";
+import { sample, shuffled } from "./randomUtils";
 
-type StatsMap = Record<string, QuestionStats>;
-
-function getAccuracy(s?: QuestionStats): number | null {
-  if (!s) return null;
-  const att = s.correctCount + s.wrongCount;
-  if (att === 0) return null;
-  return s.correctCount / att;
-}
-
-export function selectSessionQuestions(params: {
+interface SessionSelectorInput {
   all: QuizQuestion[];
   config: SessionConfig;
   statsMap: StatsMap;
-  difficulty: DifficultyState;
+  difficulty: "EASY" | "MEDIUM" | "HARD";
   weakCategories: string[];
-}): QuizQuestion[] {
-  const { all, config, statsMap, difficulty, weakCategories } = params;
+}
 
-  // Base filter: grade + category
-  let pool = all;
-  if (config.grade) pool = pool.filter(q => q.grade === config.grade);
-  if (config.type === "topic_drill") {
-    if (!config.category) return [];
-    pool = pool.filter(q => q.category === config.category);
-  } else if (config.category) {
-    // optional category bias if provided
-    pool = pool.filter(q => q.category === config.category);
+/**
+ * Selects which questions should appear in a session,
+ * including weak-area and difficulty adaptation.
+ */
+export function selectSessionQuestions(input: SessionSelectorInput): QuizQuestion[] {
+  const { all, config, statsMap, difficulty, weakCategories } = input;
+  const { type, grade, category, limit } = config;
+
+  let pool = [...all];
+
+  // Filter by grade if provided
+  if (typeof grade === "number") {
+    pool = pool.filter((q) => q.grade === grade);
   }
 
-  // Session-specific selection
-  if (config.type === "weak_area") {
-    const wrongBefore = pool.filter(q => {
-      const s = statsMap[q.id];
-      return s ? s.wrongCount > 0 && s.wrongCount >= s.correctCount : false;
+  const getStat = (q: QuizQuestion): QuestionStat | undefined => statsMap[q.id];
+
+  // Helper: score for "difficulty" based on historical accuracy
+  const withScore = pool.map((q) => {
+    const s = getStat(q);
+    const attempts = s?.totalAttempts ?? 0;
+    const accuracy =
+      attempts > 0 ? (s!.correctAttempts || 0) / attempts : 0.7; // assume mid if unknown
+    return { q, attempts, accuracy };
+  });
+
+  const selectByDifficulty = (): QuizQuestion[] => {
+    let filtered = withScore;
+
+    if (difficulty === "EASY") {
+      filtered = withScore.filter((x) => x.accuracy < 0.7);
+    } else if (difficulty === "HARD") {
+      filtered = withScore.filter((x) => x.accuracy > 0.7);
+    }
+
+    if (!filtered.length) filtered = withScore;
+
+    filtered.sort((a, b) => {
+      if (difficulty === "EASY") {
+        // easier first -> lower accuracy first
+        return a.accuracy - b.accuracy;
+      } else if (difficulty === "HARD") {
+        return b.accuracy - a.accuracy;
+      }
+      return 0;
     });
 
-    // If empty, fall back to weak categories bias
-    const fallback = weakCategories.length
-      ? pool.filter(q => weakCategories.includes(q.category))
-      : pool;
+    return sample(
+      filtered.map((x) => x.q),
+      limit
+    );
+  };
 
-    return sample(wrongBefore.length ? wrongBefore : fallback, config.limit);
+  switch (type) {
+    case "practice": {
+      return selectByDifficulty();
+    }
+
+    case "topic_drill": {
+      const topicPool = pool.filter((q) =>
+        category ? q.category === category : true
+      );
+      return sample(topicPool, limit);
+    }
+
+    case "quick_revision": {
+      // bias to easier questions (low attempts or lower accuracy)
+      const sorted = withScore.sort((a, b) => {
+        const aScore = (a.attempts || 0) * a.accuracy;
+        const bScore = (b.attempts || 0) * b.accuracy;
+        return aScore - bScore;
+      });
+      return sample(
+        sorted.map((x) => x.q),
+        limit
+      );
+    }
+
+    case "mock_exam": {
+      // mixed difficulty, random order
+      return sample(shuffled(pool), limit);
+    }
+
+    case "weak_area": {
+      // Prefer categories the learner is weak in
+      let weakPool = pool.filter((q) => weakCategories.includes(q.category));
+
+      if (!weakPool.length) {
+        // Fallback → pick individually weak questions by accuracy
+        const weakQs = withScore
+          .filter((x) => x.attempts >= 2 && x.accuracy < 0.6)
+          .map((x) => x.q);
+        weakPool = weakQs.length ? weakQs : pool;
+      }
+
+      return sample(weakPool, limit);
+    }
+
+    default:
+      return sample(pool, limit);
   }
-
-  if (config.type === "quick_revision") {
-    const easy = pool
-      .map(q => ({ q, acc: getAccuracy(statsMap[q.id]) }))
-      .filter(x => x.acc !== null && (x.acc as number) >= 0.7)
-      .map(x => x.q);
-
-    // If user has no history, just sample normally
-    return sample(easy.length ? easy : pool, config.limit);
-  }
-
-  if (config.type === "mock_exam") {
-    // Practical v1: mixed random across pool. (Later you can balance by category.)
-    return sample(pool, config.limit);
-  }
-
-  // practice/topic_drill: apply difficulty bias (simple, explainable)
-  if (difficulty === "HARD") {
-    const harder = pool.filter(q => {
-      const acc = getAccuracy(statsMap[q.id]);
-      // unknown accuracy treated as medium; include them too
-      return acc === null ? true : acc < 0.6;
-    });
-    return sample(harder.length ? harder : pool, config.limit);
-  }
-
-  if (difficulty === "EASY") {
-    const easier = pool.filter(q => {
-      const acc = getAccuracy(statsMap[q.id]);
-      return acc === null ? true : acc >= 0.6;
-    });
-    return sample(easier.length ? easier : pool, config.limit);
-  }
-
-  return sample(pool, config.limit);
 }

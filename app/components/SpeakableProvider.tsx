@@ -1,8 +1,16 @@
-import React, { createContext, useContext, useMemo, useRef, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { Text, TextProps } from "react-native";
 import { TTS } from "../hooks/tts";
 
 type Item = { id: string; text: string; order: number };
+
 type Ctx = {
   register: (id: string, text: string, order?: number) => () => void;
   readScreen: (opts?: { haptic?: boolean; separator?: string }) => Promise<void>;
@@ -12,20 +20,41 @@ type Ctx = {
 const SpeakCtx = createContext<Ctx | null>(null);
 
 export function SpeakableProvider({ children }: { children: React.ReactNode }) {
-  const registry = useRef(new Map<string, Item>()).current;
+  // stable ref object that never changes
+  const registryRef = useRef<Map<string, Item>>(new Map());
 
-  const register = (id: string, text: string, order = 0) => {
-    registry.set(id, { id, text, order });
-    return () => registry.delete(id);
-  };
+  const register = useCallback(
+    (id: string, text: string, order = 0) => {
+      const registry = registryRef.current;
+      registry.set(id, { id, text, order });
 
-  const readScreen: Ctx["readScreen"] = async ({ haptic = true, separator = ". " } = {}) => {
-    const items = [...registry.values()].sort((a, b) => a.order - b.order);
-    const text = items.map(i => i.text).join(separator);
-    await TTS.speak(text, { haptic });
-  };
+      // cleanup function to unregister
+      return () => {
+        registry.delete(id);
+      };
+    },
+    [] // only uses registryRef, which is stable
+  );
 
-  const value = useMemo<Ctx>(() => ({ register, readScreen, stop: TTS.stop }), []);
+  const readScreen = useCallback<Ctx["readScreen"]>(
+    async ({ haptic = true, separator = ". " } = {}) => {
+      const registry = registryRef.current;
+      const items = [...registry.values()].sort((a, b) => a.order - b.order);
+      const text = items.map(i => i.text).join(separator);
+      await TTS.speak(text, { haptic });
+    },
+    [] // only uses registryRef and TTS import
+  );
+
+  const value = useMemo<Ctx>(
+    () => ({
+      register,
+      readScreen,
+      stop: TTS.stop,
+    }),
+    [register, readScreen]
+  );
+
   return <SpeakCtx.Provider value={value}>{children}</SpeakCtx.Provider>;
 }
 

@@ -5,17 +5,12 @@ export type SessionType =
   | "mock_exam"
   | "weak_area";
 
-export type SessionConfig = {
+export interface SessionConfig {
   type: SessionType;
-  grade?: 10 | 11;
-  category?: string; // required for topic_drill
-  limit: number; // 5/10/40 etc.
-};
-
-export const DEFAULT_LIMITS: Record<SessionType, number> = {
-  practice: 10,
-  topic_drill: 10,
-  quick_revision: 5,
-  mock_exam: 40,
-  weak_area: 10,
-};
+  /** Optional grade filter: 10 or 11. */
+  grade?: number;
+  /** Optional category filter for topic_drill. */
+  category?: string;
+  /** Maximum number of questions in the session. */
+  limit: number;
+}

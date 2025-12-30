@@ -1,17 +1,55 @@
-import { loadLessonDataset, LessonDataset, LessonSegment } from "./datasetLoader";
+import {
+  loadLessonBank,
+  LessonBank,
+  LessonContentSegment
+} from "./datasetLoader";
 
 export class LessonRepository {
-  private dataset: LessonDataset;
+  private bank: LessonBank;
 
   constructor() {
-    this.dataset = loadLessonDataset();
+    this.bank = loadLessonBank();
   }
 
+  /**
+   * Returns basic course metadata.
+   */
   getLessonMeta() {
-    return { lessonId: this.dataset.lesson_id, title: this.dataset.title };
+    return {
+      courseId: this.bank.course_id,
+      title: this.bank.title
+    };
   }
 
-  getSegments(): LessonSegment[] {
-    return this.dataset.segments ?? [];
+  /**
+   * Returns ALL lesson segments in correct order.
+   * Used by current Lesson Player to read sequentially.
+   */
+  getSegments(): LessonContentSegment[] {
+    return [...this.bank.lessons]
+      .sort((a, b) => a.order - b.order)
+      .flatMap((lesson) => lesson.segments);
+  }
+
+  /**
+   * Filter by category and/or grade.
+   *
+   * Example:
+   *  getSegmentsFor("Networking", 11)
+   */
+  getSegmentsFor(category?: string, grade?: number): LessonContentSegment[] {
+    let lessons = this.bank.lessons;
+
+    if (category) {
+      lessons = lessons.filter((l) => l.category === category);
+    }
+
+    if (typeof grade === "number") {
+      lessons = lessons.filter((l) => l.grade === grade);
+    }
+
+    return [...lessons]
+      .sort((a, b) => a.order - b.order)
+      .flatMap((lesson) => lesson.segments);
   }
 }

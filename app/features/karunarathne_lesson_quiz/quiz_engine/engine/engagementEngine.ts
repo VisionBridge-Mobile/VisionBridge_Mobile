@@ -1,81 +1,90 @@
-import { QuestionStats } from "./progressStore";
+import { QuestionStat } from "./progressStore";
 
-export type EngagementLevel = "HIGH" | "MEDIUM" | "LOW";
-export type DifficultyState = "EASY" | "NORMAL" | "HARD";
+export type EngagementLevel = "LOW" | "MEDIUM" | "HIGH";
+export type DifficultyBand = "EASY" | "MEDIUM" | "HARD";
 
-export type EngagementResult = {
-  score: number; // 0..100
+export interface EngagementResult {
   level: EngagementLevel;
-  difficulty: DifficultyState;
+  difficulty: DifficultyBand;
+  /**
+   * Categories where learner is relatively weak
+   * (lower accuracy with enough attempts).
+   */
   weakCategories: string[];
-};
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
 }
 
-export function computeEngagement(statsList: QuestionStats[]): EngagementResult {
-  if (statsList.length === 0) {
-    return { score: 60, level: "MEDIUM", difficulty: "NORMAL", weakCategories: [] };
+/**
+ * Compute a simple but meaningful engagement profile:
+ * - overall accuracy
+ * - average hints / repeats / time
+ * - weak categories by accuracy
+ */
+export function computeEngagement(stats: QuestionStat[]): EngagementResult {
+  if (!stats.length) {
+    return {
+      level: "MEDIUM",
+      difficulty: "MEDIUM",
+      weakCategories: [],
+    };
   }
 
-  // Rolling window: last 30 attempts (approx) by lastAttemptAt
-  const recent = [...statsList]
-    .sort((a, b) => b.lastAttemptAt - a.lastAttemptAt)
-    .slice(0, 30);
+  let totalAttempts = 0;
+  let totalCorrect = 0;
+  let totalTime = 0;
+  let totalHints = 0;
+  let totalRepeats = 0;
 
-  const totalCorrect = recent.reduce((s, x) => s + x.correctCount, 0);
-  const totalWrong = recent.reduce((s, x) => s + x.wrongCount, 0);
-  const totalAttempts = totalCorrect + totalWrong;
+  const categoryMap: Record<
+    string,
+    { attempts: number; correct: number }
+  > = {};
 
-  const accuracy = totalAttempts === 0 ? 0.6 : totalCorrect / totalAttempts; // 0..1
-  const avgTime = Math.round(recent.reduce((s, x) => s + x.avgTimeMs, 0) / recent.length);
+  for (const s of stats) {
+    totalAttempts += s.totalAttempts;
+    totalCorrect += s.correctAttempts;
+    totalTime += s.totalTimeMs;
+    totalHints += s.totalHints;
+    totalRepeats += s.totalRepeats;
 
-  // Normalize response speed: assume 6s fast, 18s slow
-  const T = clamp((18000 - avgTime) / (18000 - 6000), 0, 1);
-
-  const totalHints = recent.reduce((s, x) => s + x.hintCount, 0);
-  const hintRate = totalAttempts === 0 ? 0 : totalHints / totalAttempts;
-  const H = clamp(hintRate, 0, 1);
-
-  // Approx wrong streak: count how many most-recent items have lastAttemptCorrect=false
-  let wrongStreak = 0;
-  for (const s of recent) {
-    if (s.lastAttemptCorrect) break;
-    wrongStreak += 1;
-    if (wrongStreak >= 5) break;
+    if (!categoryMap[s.category]) {
+      categoryMap[s.category] = { attempts: 0, correct: 0 };
+    }
+    categoryMap[s.category].attempts += s.totalAttempts;
+    categoryMap[s.category].correct += s.correctAttempts;
   }
-  const W = clamp(wrongStreak / 5, 0, 1);
 
-  // Engagement score
-  let ES = (0.4 * accuracy + 0.3 * T) - (0.2 * H + 0.1 * W);
-  ES = clamp(ES, 0, 1);
-  const score = Math.round(ES * 100);
+  const accuracy = totalAttempts ? totalCorrect / totalAttempts : 0;
+  const avgTime = totalAttempts ? totalTime / totalAttempts : 0;
+  const avgHints = totalAttempts ? totalHints / totalAttempts : 0;
+  const avgRepeats = totalAttempts ? totalRepeats / totalAttempts : 0;
 
-  const level: EngagementLevel = score >= 75 ? "HIGH" : score >= 45 ? "MEDIUM" : "LOW";
+  // Engagement level heuristic
+  let level: EngagementLevel = "MEDIUM";
 
-  // Weak categories: compute per-category accuracy approx from stats totals
-  const byCat = new Map<string, { c: number; w: number }>();
-  for (const s of statsList) {
-    const cur = byCat.get(s.category) ?? { c: 0, w: 0 };
-    cur.c += s.correctCount;
-    cur.w += s.wrongCount;
-    byCat.set(s.category, cur);
+  if (accuracy < 0.5 || avgHints > 0.7 || avgRepeats > 0.7) {
+    level = "LOW";
+  } else if (accuracy > 0.8 && avgTime < 15000 && avgHints < 0.4) {
+    level = "HIGH";
   }
-  const weakCategories = [...byCat.entries()]
-    .map(([cat, v]) => {
-      const att = v.c + v.w;
-      const acc = att === 0 ? 1 : v.c / att;
-      return { cat, acc };
-    })
-    .filter(x => x.acc < 0.5)
-    .sort((a, b) => a.acc - b.acc)
-    .slice(0, 3)
-    .map(x => x.cat);
 
-  // Difficulty state
-  const difficulty: DifficultyState =
-    level === "HIGH" ? "HARD" : level === "LOW" ? "EASY" : "NORMAL";
+  // Difficulty band suggestion
+  let difficulty: DifficultyBand = "MEDIUM";
+  if (level === "LOW") difficulty = "EASY";
+  if (level === "HIGH") difficulty = "HARD";
 
-  return { score, level, difficulty, weakCategories };
+  // Compute weak categories
+  const weakCategories: string[] = [];
+  for (const [cat, agg] of Object.entries(categoryMap)) {
+    if (agg.attempts < 3) continue; // need enough data
+    const catAccuracy = agg.correct / agg.attempts;
+    if (catAccuracy < 0.6) {
+      weakCategories.push(cat);
+    }
+  }
+
+  return {
+    level,
+    difficulty,
+    weakCategories,
+  };
 }

@@ -1,8 +1,12 @@
-// app/features/karunarathne_lesson_quiz/data/datasetLoader.ts
+/**
+ * -----------------------------
+ * QUESTION BANK  (large_lesson.json)
+ * -----------------------------
+ */
 
 export type LessonSegment = {
   id: string;
-  type: string; // e.g., "intro", "lesson", etc.
+  type: string; // e.g., "intro", "lesson"
   text: string;
 };
 
@@ -23,46 +27,108 @@ export type LessonDataset = {
   quiz: QuizQuestion[];
 };
 
-let cachedDataset: LessonDataset | null = null;
+/**
+ * -----------------------------
+ * STRUCTURED LESSON BANK (lessons_ict_ol.json)
+ * -----------------------------
+ */
+
+export type LessonContentSegment = {
+  id: string;
+  type: string;    // "intro" | "definition" | "example" | "recap" | etc.
+  text: string;
+};
+
+export type LessonUnit = {
+  lesson_id: string;
+  category: string;
+  grade: number;
+  order: number;
+  title: string;
+  objective: string;
+  segments: LessonContentSegment[];
+};
+
+export type LessonBank = {
+  course_id: string;
+  title: string;
+  grades: number[];
+  lessons: LessonUnit[];
+};
 
 /**
- * Loads the lesson + quiz dataset from local bundled JSON.
- * Uses a simple in-memory cache so the JSON isn't reloaded repeatedly.
+ * -----------------------------
+ * IN-MEMORY CACHES
+ * -----------------------------
+ */
+let cachedQuizDataset: LessonDataset | null = null;
+let cachedLessonBank: LessonBank | null = null;
+
+/**
+ * -----------------------------
+ * LOAD QUESTION BANK
+ * from: assets/data/large_lesson.json
+ * -----------------------------
+ *
+ * Used by:
+ *  - QuizRepository
  */
 export function loadLessonDataset(): LessonDataset {
-  if (cachedDataset) return cachedDataset;
+  if (cachedQuizDataset) return cachedQuizDataset;
 
-  // Your dataset location:
-  // VISIONBRIDGE_MOBILE/assets/data/large_lesson.json
-  // Current file location:
-  // VISIONBRIDGE_MOBILE/app/features/karunarathne_lesson_quiz/data/datasetLoader.ts
   const raw = require("../../../../assets/data/large_lesson.json") as LessonDataset;
 
-  // Basic validation to fail early (helps debugging)
+  // -------- Basic validation --------
   if (!raw || typeof raw !== "object") {
-    throw new Error("Dataset load failed: JSON is empty or not an object.");
+    throw new Error("Question dataset load failed: JSON is empty or invalid.");
   }
-  if (!raw.lesson_id || typeof raw.lesson_id !== "string") {
-    throw new Error("Dataset invalid: missing lesson_id.");
-  }
-  if (!raw.title || typeof raw.title !== "string") {
-    throw new Error("Dataset invalid: missing title.");
-  }
-  if (!Array.isArray(raw.segments)) {
-    throw new Error("Dataset invalid: segments must be an array.");
-  }
-  if (!Array.isArray(raw.quiz)) {
-    throw new Error("Dataset invalid: quiz must be an array.");
-  }
+  if (!raw.lesson_id) throw new Error("Question dataset invalid: missing lesson_id.");
+  if (!raw.title) throw new Error("Question dataset invalid: missing title.");
+  if (!Array.isArray(raw.segments)) throw new Error("Question dataset invalid: segments must be an array.");
+  if (!Array.isArray(raw.quiz)) throw new Error("Question dataset invalid: quiz must be an array.");
 
-  // Optional deep validation for quiz items (kept light to avoid startup cost)
+  // Light validation (first 20 questions)
   for (let i = 0; i < Math.min(raw.quiz.length, 20); i++) {
     const q = raw.quiz[i];
     if (!q?.id || !q.question || !Array.isArray(q.options) || !q.correct_answer) {
-      throw new Error(`Dataset invalid: quiz item at index ${i} is missing required fields.`);
+      throw new Error(`Quiz item ${i} missing required fields.`);
     }
   }
 
-  cachedDataset = raw;
-  return cachedDataset;
+  cachedQuizDataset = raw;
+  return cachedQuizDataset;
+}
+
+/**
+ * -----------------------------
+ * LOAD STRUCTURED LESSON BANK
+ * from: assets/data/lessons_ict_ol.json
+ * -----------------------------
+ *
+ * Used by:
+ *  - LessonRepository / LessonPlayer
+ */
+export function loadLessonBank(): LessonBank {
+  if (cachedLessonBank) return cachedLessonBank;
+
+  const raw = require("../../../../assets/data/lessons_ict_ol.json") as LessonBank;
+
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Lesson bank load failed: JSON empty or invalid.");
+  }
+  if (!raw.course_id) throw new Error("Lesson bank invalid: missing course_id.");
+  if (!Array.isArray(raw.lessons)) {
+    throw new Error("Lesson bank invalid: lessons must be an array.");
+  }
+
+  // Validate first few lessons
+  for (let i = 0; i < Math.min(raw.lessons.length, 10); i++) {
+    const lesson = raw.lessons[i];
+    if (!lesson?.lesson_id || !lesson.title || !Array.isArray(lesson.segments)) {
+      throw new Error(`Lesson bank invalid: lesson index ${i} missing required fields.`);
+    }
+  }
+
+  cachedLessonBank = raw;
+  return cachedLessonBank;
 }
