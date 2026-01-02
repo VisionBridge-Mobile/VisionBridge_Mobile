@@ -1,13 +1,13 @@
 # VisionBridge Mobile: G.C.E. O/L ICT Comprehensive Question Bank
 
-## 📘 Project Overview
+## Project Overview
 This repository hosts the **Master Question Bank** for the VisionBridge Mobile learning platform. This dataset has been **manually created and structured** to provide exhaustive coverage of the **Sri Lankan G.C.E. Ordinary Level (O/L) ICT Syllabus** for Grades 10 and 11.
 
 The content is designed to support the **Audio Quiz Engine** by providing high-quality, syllabus-accurate questions that directly address the Learning Outcomes specified by the National Institute of Education (NIE).
 
 ---
 
-## 🎯 Syllabus Alignment & Domain Coverage
+## Syllabus Alignment & Domain Coverage
 The question bank covers **100% of the Competency Levels** required for the O/L examination. Each question has been crafted to test specific knowledge points within the following domains:
 
 ### **Grade 10 Syllabus**
@@ -95,7 +95,7 @@ The question bank covers **100% of the Competency Levels** required for the O/L 
 
 ---
 
-## 📂 Dataset Structure
+## Dataset Structure
 
 The data is stored in the `assets/` directory and formatted as follows:
 
@@ -104,5 +104,5 @@ The data is stored in the `assets/` directory and formatted as follows:
 
 ---
 
-## ⚖️ Content Policy
+## Content Policy
 This dataset was created ensuring strict adherence to the **National Institute of Education (NIE)** curriculum guidelines. All questions, distractors (wrong answers), and hints have been manually verified to ensure they are age-appropriate and contextually relevant for Sri Lankan O/L students.

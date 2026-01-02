@@ -6,6 +6,7 @@ import { SessionConfig } from "../models/sessionTypes";
 import { getStatsMap, upsertAttempt } from "../engine/progressStore";
 import { computeEngagement, EngagementResult } from "../engine/engagementEngine";
 import { selectSessionQuestions } from "../engine/sessionSelector";
+import { callGemini } from "../../services/geminiClient";
 
 export class QuizController {
   private repo = new QuizRepository();
@@ -31,8 +32,8 @@ export class QuizController {
     // Adapt session length based on engagement level (practical)
     const limit =
       engagement.level === "LOW" ? Math.min(5, config.limit) :
-      engagement.level === "HIGH" ? Math.min(config.limit + 5, 40) :
-      config.limit;
+        engagement.level === "HIGH" ? Math.min(config.limit + 5, 40) :
+          config.limit;
 
     const effectiveConfig: SessionConfig = { ...config, limit };
 
@@ -60,15 +61,15 @@ export class QuizController {
   private sessionIntroText(config: SessionConfig, engagement: EngagementResult) {
     const base =
       config.type === "practice" ? "Starting practice session." :
-      config.type === "topic_drill" ? `Starting topic drill on ${config.category ?? "selected topic"}.` :
-      config.type === "quick_revision" ? "Starting quick revision." :
-      config.type === "mock_exam" ? "Starting mock exam." :
-      "Starting weak area practice.";
+        config.type === "topic_drill" ? `Starting topic drill on ${config.category ?? "selected topic"}.` :
+          config.type === "quick_revision" ? "Starting quick revision." :
+            config.type === "mock_exam" ? "Starting mock exam." :
+              "Starting weak area practice.";
 
     const adapt =
       engagement.level === "LOW" ? "I will keep it short and provide extra hints." :
-      engagement.level === "HIGH" ? "You are doing well. I will include more challenging questions." :
-      "Let’s begin.";
+        engagement.level === "HIGH" ? "You are doing well. I will include more challenging questions." :
+          "Let's begin.";
 
     return `${base} This session has ${config.limit} questions. ${adapt}`;
   }
@@ -96,13 +97,39 @@ export class QuizController {
     this.speakCurrent();
   }
 
-  speakHint() {
+  async speakHint() {
     const q = this.sessionQuestions[this.idx];
     if (!q) return;
+
+    //  track hint usage for analytics / engagement
     this.hintUsedThisQuestion += 1;
-    const hint = q.hint_topic ? q.hint_topic : "Think about the concept and eliminate wrong options.";
-    this.tts.speak(`Hint. ${hint}`);
+
+    // 1. Try AI powered hint
+    try {
+      const ai = await callGemini(`
+You are helping a visually impaired Grade ${q.grade} ICT student.
+Give a short, spoken-style hint for this question WITHOUT saying the answer.
+
+Question: ${q.question}
+
+Options:
+${q.options.join("\n")}
+`);
+
+      this.tts.speak("Hint. " + ai);
+      return;
+    } catch {
+      // ignore error fall back
+    }
+
+    // 2. Fallback to offline hint
+    const fallback =
+      q.hint_topic ??
+      "Think about what the key concept is and eliminate clearly wrong answers.";
+
+    this.tts.speak("Hint. " + fallback);
   }
+
 
   async answer(optionIndex: number) {
     const q = this.sessionQuestions[this.idx];
@@ -134,7 +161,7 @@ export class QuizController {
       return;
     }
 
-    // Wrong → adaptive hint behavior
+    // Wrong  adaptive hint behavior
     if (this.lastEngagement?.level === "LOW") {
       this.tts.speak(`Wrong. ${q.hint_topic ? "Hint. " + q.hint_topic : ""} Try again.`);
     } else {

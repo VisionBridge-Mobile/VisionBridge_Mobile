@@ -1,26 +1,26 @@
-import { LessonSegment } from "../../data/datasetLoader";
+import { LessonContentSegment } from "../../data/datasetLoader";
 
 export class LessonSequencer {
-  private segments: LessonSegment[];
-  private idx: number;
+  private segments: LessonContentSegment[];
+  private idx = 0;
 
-  constructor(segments: LessonSegment[], startIndex: number = 0) {
-    this.segments = segments;
-    this.idx = Math.max(0, Math.min(startIndex, segments.length - 1));
+  constructor(segments: LessonContentSegment[]) {
+    this.segments = segments ?? [];
+    this.idx = 0;
   }
 
-  current(): LessonSegment | null {
+  current(): LessonContentSegment | null {
     return this.segments[this.idx] ?? null;
   }
 
-  next(): LessonSegment | null {
+  next(): LessonContentSegment | null {
     if (this.idx < this.segments.length - 1) {
       this.idx += 1;
     }
     return this.current();
   }
 
-  prev(): LessonSegment | null {
+  prev(): LessonContentSegment | null {
     if (this.idx > 0) {
       this.idx -= 1;
     }
@@ -31,14 +31,7 @@ export class LessonSequencer {
     return this.idx;
   }
 
-  /**
-   * Jump to a specific segment index if valid.
-   */
-  goTo(index: number): LessonSegment | null {
-    if (index < 0 || index >= this.segments.length) {
-      return this.current();
-    }
-    this.idx = index;
-    return this.current();
+  total(): number {
+    return this.segments.length;
   }
 }

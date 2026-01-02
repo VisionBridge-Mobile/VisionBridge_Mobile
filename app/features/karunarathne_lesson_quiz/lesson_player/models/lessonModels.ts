@@ -62,6 +62,6 @@ export interface LessonCursor {
 export interface LessonProgressSummary {
   totalLessons: number;
   completedLessons: number;
-  /** Percentage in 0–1 range. */
+  /** Percentage in 0-1 range. */
   completionRatio: number;
 }

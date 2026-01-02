@@ -99,7 +99,7 @@ export function selectSessionQuestions(input: SessionSelectorInput): QuizQuestio
       let weakPool = pool.filter((q) => weakCategories.includes(q.category));
 
       if (!weakPool.length) {
-        // Fallback → pick individually weak questions by accuracy
+        // Fallback  pick individually weak questions by accuracy
         const weakQs = withScore
           .filter((x) => x.attempts >= 2 && x.accuracy < 0.6)
           .map((x) => x.q);

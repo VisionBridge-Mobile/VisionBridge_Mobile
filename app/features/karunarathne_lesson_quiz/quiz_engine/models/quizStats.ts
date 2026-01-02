@@ -8,11 +8,11 @@ export interface QuizStats {
   answered: number;
   correct: number;
   incorrect: number;
-  /** 0–1 ratio of correct answers. */
+  /** 0-1 ratio of correct answers. */
   accuracy: number;
   /** Longest streak of correct answers in this session. */
   bestStreak: number;
-  /** Simple engagement score (0–1) – can be tuned by the engagement engine. */
+  /** Simple engagement score (0-1) - can be tuned by the engagement engine. */
   engagementScore: number;
 }
 
