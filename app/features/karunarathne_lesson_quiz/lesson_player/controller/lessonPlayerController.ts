@@ -10,6 +10,7 @@ export class LessonPlayerController {
   private currentLesson: LessonSummary | null = null;
 
   constructor() {
+    // Load a default lesson so the UI has something ready on first open
     const def = this.repo.getDefaultLesson();
     if (def) {
       this.loadLesson(def.lessonId);
@@ -37,12 +38,14 @@ export class LessonPlayerController {
   }
 
   private loadLesson(lessonId: string) {
+    // Find metadata for the selected lesson
     const allForGrade10 = this.repo.getLessonSummariesForGrade(10);
     const allForGrade11 = this.repo.getLessonSummariesForGrade(11);
     const all = [...allForGrade10, ...allForGrade11];
 
     this.currentLesson = all.find((l) => l.lessonId === lessonId) ?? null;
 
+    // Load segments and reset sequencer
     const segments = this.repo.getSegmentsForLesson(lessonId);
     this.sequencer = new LessonSequencer(segments);
   }
@@ -60,13 +63,21 @@ export class LessonPlayerController {
     this.tts.speak(seg.text);
   }
 
+  /**
+   * Move to next segment. If there is no next segment, we announce
+   * that the lesson has finished and guide the learner to the quiz.
+   */
   next() {
     if (!this.sequencer) return;
     const seg = this.sequencer.next();
+
     if (!seg) {
-      this.tts.speak("End of lesson.");
+      this.tts.speak(
+        "You have reached the end of this lesson. You can now start the quiz for this topic using the Start Quiz for this lesson button."
+      );
       return;
     }
+
     this.tts.speak(seg.text);
   }
 

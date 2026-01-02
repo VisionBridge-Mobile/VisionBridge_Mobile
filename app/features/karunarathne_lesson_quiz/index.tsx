@@ -8,20 +8,31 @@ import {
   SafeAreaView,
 } from "react-native";
 import { LessonPlayerController } from "./lesson_player/controller/lessonPlayerController";
-import { QuizController } from "./quiz_engine/controller/quizController";
+import {
+  QuizController,
+  ActiveQuestionView,
+  AnswerStatus,
+} from "./quiz_engine/controller/quizController";
 import type { LessonSummary } from "./data/lessonRepository";
 
 type Mode = "lesson" | "quiz";
 
 export default function KarunarathneLessonQuizScreen() {
   const lesson = useMemo(() => new LessonPlayerController(), []);
-  const quiz = useMemo(() => new QuizController(), []);
+
+  const [activeQuestion, setActiveQuestion] =
+    useState<ActiveQuestionView | null>(null);
+  const quiz = useMemo(
+    () => new QuizController(setActiveQuestion),
+    []
+  );
 
   const [mode, setMode] = useState<Mode>("lesson");
   const [currentSessionLabel, setCurrentSessionLabel] =
     useState<string | null>(null);
 
-  // Lesson-mode state
+  /* ---------------- LESSON MODE STATE ---------------- */
+
   const [grades, setGrades] = useState<number[]>([]);
   const [selectedGrade, setSelectedGrade] = useState<number | null>(null);
   const [lessonList, setLessonList] = useState<LessonSummary[]>([]);
@@ -31,10 +42,14 @@ export default function KarunarathneLessonQuizScreen() {
   const [segmentText, setSegmentText] = useState("");
   const [quizReady, setQuizReady] = useState(false);
 
-  // ------------ initial load of grades + first lesson -------------
+  // For timer on the active quiz question
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  /* ------------ initial load of grades + first lesson ------------- */
   useEffect(() => {
     const g = lesson.getAvailableGrades();
     if (!g.length) return;
+
     setGrades(g);
     const firstGrade = g[0];
     setSelectedGrade(firstGrade);
@@ -62,7 +77,25 @@ export default function KarunarathneLessonQuizScreen() {
     setQuizReady(total > 0 && idx >= total - 1);
   };
 
-  // ------------ Lesson handlers ------------
+  /* ---------------- TIMER FOR ACTIVE QUESTION ---------------- */
+
+  useEffect(() => {
+    if (!activeQuestion?.startedAt || activeQuestion.done) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const id = setInterval(() => {
+      setElapsedSeconds(
+        Math.max(
+          0,
+          Math.floor((Date.now() - (activeQuestion.startedAt || 0)) / 1000)
+        )
+      );
+    }, 1000);
+    return () => clearInterval(id);
+  }, [activeQuestion?.startedAt, activeQuestion?.done]);
+
+  /* ---------------- LESSON HANDLERS ---------------- */
 
   const handleSelectGrade = (grade: number) => {
     setSelectedGrade(grade);
@@ -133,7 +166,7 @@ export default function KarunarathneLessonQuizScreen() {
     });
   };
 
-  // ------------ Quiz session handlers ------------
+  /* ---------------- QUIZ SESSION HANDLERS ---------------- */
 
   const handlePractice = () => {
     setMode("quiz");
@@ -176,6 +209,10 @@ export default function KarunarathneLessonQuizScreen() {
     mode === "lesson"
       ? "Lesson mode: select Grade 10 or 11, pick a lesson, and the segments will be spoken while you can follow the enlarged text."
       : "Quiz mode: run practice, revision or mock exams. You can later map gestures to answers A, B, C, D and hints.";
+
+  const selectedIndex = activeQuestion?.selectedIndex ?? -1;
+  const answerStatus: AnswerStatus =
+    activeQuestion?.answerStatus ?? "idle";
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -335,7 +372,7 @@ export default function KarunarathneLessonQuizScreen() {
                 {quizReady && (
                   <View style={styles.quizEntry}>
                     <Text style={styles.quizEntryLabel}>
-                      Ready to check your understanding of this lesson?
+                      You have completed this lesson. Start the linked quiz to test your understanding of this topic.
                     </Text>
                     <PrimaryButton
                       label="Start Quiz for this Lesson"
@@ -359,7 +396,7 @@ export default function KarunarathneLessonQuizScreen() {
                   revision and mock exams.
                 </Text>
 
-                <View className="sessionGrid" style={styles.sessionGrid}>
+                <View style={styles.sessionGrid}>
                   <SessionCard
                     label="Practice"
                     badge="10 Qs · G10"
@@ -393,6 +430,80 @@ export default function KarunarathneLessonQuizScreen() {
                 </View>
               </View>
 
+              {/* Active question / summary card */}
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>
+                  {activeQuestion?.done ? "Session Summary" : "Active Question"}
+                </Text>
+
+                {activeQuestion?.done ? (
+                  <>
+                    <Text style={styles.cardSubtitle}>
+                      You answered {activeQuestion.correctCount} out of{" "}
+                      {activeQuestion.totalCount} questions correctly.
+                    </Text>
+                    {typeof activeQuestion.correctCount === "number" &&
+                      typeof activeQuestion.totalCount === "number" &&
+                      activeQuestion.totalCount > 0 && (
+                        <Text style={styles.questionText}>
+                          Score:{" "}
+                          {Math.round(
+                            (activeQuestion.correctCount /
+                              activeQuestion.totalCount) *
+                            100
+                          )}
+                          %
+                        </Text>
+                      )}
+                    <Text style={styles.sessionHint}>
+                      You can start another session above or go back to lesson
+                      mode.
+                    </Text>
+                  </>
+                ) : activeQuestion?.question ? (
+                  <>
+                    <View style={styles.questionHeaderRow}>
+                      <Text style={styles.questionBadge}>
+                        Q {activeQuestion.index + 1} of {activeQuestion.total}
+                      </Text>
+                      <Text style={styles.questionMeta}>
+                        G{activeQuestion.question.grade} ·{" "}
+                        {activeQuestion.question.category}
+                      </Text>
+                    </View>
+
+                    <Text style={styles.questionText}>
+                      {activeQuestion.question.question}
+                    </Text>
+
+                    <View style={styles.questionOptions}>
+                      {activeQuestion.question.options.map((opt, i) => (
+                        <Text key={i} style={styles.questionOptionText}>
+                          {String.fromCharCode(65 + i)}. {opt}
+                        </Text>
+                      ))}
+                    </View>
+
+                    {activeQuestion.lastHint ? (
+                      <Text style={styles.questionHint}>
+                        Hint: {activeQuestion.lastHint}
+                      </Text>
+                    ) : null}
+
+                    {activeQuestion.startedAt && (
+                      <Text style={styles.questionTimer}>
+                        Time on question: {elapsedSeconds}s
+                      </Text>
+                    )}
+                  </>
+                ) : (
+                  <Text style={styles.sessionHint}>
+                    Start a session above to see questions here while they are
+                    read aloud.
+                  </Text>
+                )}
+              </View>
+
               {/* Answer Controls Card */}
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Answer Controls</Text>
@@ -402,10 +513,30 @@ export default function KarunarathneLessonQuizScreen() {
                 </Text>
 
                 <View style={styles.answerGrid}>
-                  <AnswerButton label="A" onPress={() => quiz.answer(0)} />
-                  <AnswerButton label="B" onPress={() => quiz.answer(1)} />
-                  <AnswerButton label="C" onPress={() => quiz.answer(2)} />
-                  <AnswerButton label="D" onPress={() => quiz.answer(3)} />
+                  <AnswerButton
+                    label="A"
+                    onPress={() => quiz.answer(0)}
+                    isSelected={selectedIndex === 0}
+                    status={answerStatus}
+                  />
+                  <AnswerButton
+                    label="B"
+                    onPress={() => quiz.answer(1)}
+                    isSelected={selectedIndex === 1}
+                    status={answerStatus}
+                  />
+                  <AnswerButton
+                    label="C"
+                    onPress={() => quiz.answer(2)}
+                    isSelected={selectedIndex === 2}
+                    status={answerStatus}
+                  />
+                  <AnswerButton
+                    label="D"
+                    onPress={() => quiz.answer(3)}
+                    isSelected={selectedIndex === 3}
+                    status={answerStatus}
+                  />
                 </View>
 
                 <View style={styles.buttonRow}>
@@ -473,7 +604,12 @@ type SessionCardProps = {
   onPress: () => void;
 };
 
-function SessionCard({ label, badge, description, onPress }: SessionCardProps) {
+function SessionCard({
+  label,
+  badge,
+  description,
+  onPress,
+}: SessionCardProps) {
   return (
     <Pressable style={styles.sessionCard} onPress={onPress}>
       <View style={styles.sessionHeaderRow}>
@@ -488,11 +624,32 @@ function SessionCard({ label, badge, description, onPress }: SessionCardProps) {
 type AnswerButtonProps = {
   label: string;
   onPress: () => void;
+  isSelected: boolean;
+  status: AnswerStatus;
 };
 
-function AnswerButton({ label, onPress }: AnswerButtonProps) {
+function AnswerButton({
+  label,
+  onPress,
+  isSelected,
+  status,
+}: AnswerButtonProps) {
+  let backgroundColor = "#181b26";
+  let borderColor = "#2f3246";
+
+  if (isSelected && status === "correct") {
+    backgroundColor = "#1DB954"; // green
+    borderColor = "#1DB954";
+  } else if (isSelected && status === "wrong") {
+    backgroundColor = "#b3213b"; // red
+    borderColor = "#b3213b";
+  }
+
   return (
-    <Pressable style={styles.answerBtn} onPress={onPress}>
+    <Pressable
+      style={[styles.answerBtn, { backgroundColor, borderColor }]}
+      onPress={onPress}
+    >
       <Text style={styles.answerBtnText}>{label}</Text>
     </Pressable>
   );
@@ -805,5 +962,43 @@ const styles = StyleSheet.create({
     color: "#f5f5f7",
     fontSize: 20,
     fontWeight: "700",
+    textAlign: "center",
+  },
+  questionHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  questionBadge: {
+    color: "#c5c8ff",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  questionMeta: {
+    color: "#8d91aa",
+    fontSize: 12,
+  },
+  questionText: {
+    color: "#f5f5f7",
+    fontSize: 16,
+    marginBottom: 8,
+  },
+  questionOptions: {
+    gap: 4,
+    marginBottom: 6,
+  },
+  questionOptionText: {
+    color: "#d2d5e5",
+    fontSize: 14,
+  },
+  questionHint: {
+    color: "#ffd666",
+    fontSize: 13,
+    marginTop: 4,
+  },
+  questionTimer: {
+    color: "#8d93ff",
+    fontSize: 12,
+    marginTop: 4,
   },
 });
