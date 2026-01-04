@@ -1,18 +1,27 @@
 // app/index.tsx
-import { useEffect, useRef, useState, useCallback } from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { useRouter, Href } from "expo-router";
-import { Directions, Gesture, GestureDetector } from "react-native-gesture-handler";
-import { runOnJS } from "react-native-reanimated";
+import { ResizeMode, Video } from "expo-av";
 import * as Haptics from "expo-haptics";
-import { SpeakableProvider, SpeakableText, useReadScreen } from "./components/SpeakableProvider";
-import { Video, ResizeMode } from "expo-av";
+import { Href, useRouter } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
+import {
+  Directions,
+  Gesture,
+  GestureDetector,
+} from "react-native-gesture-handler";
+import { runOnJS } from "react-native-reanimated";
+import {
+  SpeakableProvider,
+  SpeakableText,
+  useReadScreen,
+} from "./components/SpeakableProvider";
+import React = require("react");
 
 function HomeContent({ go }: { go: (path: Href) => void }) {
   const { readScreen, stop } = useReadScreen();
 
   const feedback = useCallback(() => {
-    Haptics.selectionAsync().catch(() => { });
+    Haptics.selectionAsync().catch(() => {});
   }, []);
 
   // Triple-tap: read the whole screen
@@ -21,7 +30,6 @@ function HomeContent({ go }: { go: (path: Href) => void }) {
     .onEnd(() => {
       runOnJS(feedback)();
       runOnJS(readScreen)({ haptic: true });
-
     });
 
   const swipeUp = Gesture.Fling()
@@ -30,7 +38,6 @@ function HomeContent({ go }: { go: (path: Href) => void }) {
       runOnJS(stop)();
       runOnJS(feedback)();
       runOnJS(go)("/module");
-
     });
 
   const swipeDown = Gesture.Fling()
@@ -39,7 +46,6 @@ function HomeContent({ go }: { go: (path: Href) => void }) {
       runOnJS(stop)();
       runOnJS(feedback)();
       runOnJS(go)("/profile");
-
     });
 
   const gestures = Gesture.Simultaneous(tap, swipeUp, swipeDown);
@@ -47,11 +53,21 @@ function HomeContent({ go }: { go: (path: Href) => void }) {
   return (
     <GestureDetector gesture={gestures}>
       <View style={styles.container}>
-
-        <SpeakableText accessibilityRole="header" style={styles.title} order={0}>
+        <SpeakableText
+          accessibilityRole="header"
+          style={styles.title}
+          order={0}
+        >
           Hi, Welcome to Vision Bridge
         </SpeakableText>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "black" }}>
+        <View
+          style={{
+            flex: 1,
+            justifyContent: "center",
+            alignItems: "center",
+            backgroundColor: "black",
+          }}
+        >
           <Text style={styles.text1}>Modules</Text>
           <Video
             source={require("../assets/images/up.mp4")}
@@ -61,19 +77,15 @@ function HomeContent({ go }: { go: (path: Href) => void }) {
             isMuted
             resizeMode={ResizeMode.CONTAIN}
           />
-
         </View>
 
         <SpeakableText style={styles.text} order={1}>
-
           Swipe up → Modules
         </SpeakableText>
 
         <SpeakableText style={styles.text} order={2}>
           Swipe down → Help
         </SpeakableText>
-
-
       </View>
     </GestureDetector>
   );
@@ -99,7 +111,7 @@ export default function Index() {
   };
 
   return (
-    <SpeakableProvider >
+    <SpeakableProvider>
       <HomeContent go={go} />
     </SpeakableProvider>
   );
@@ -113,7 +125,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 15,
     gap: 8,
-
   },
   title: {
     color: "yellow",
@@ -124,26 +135,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#251bb1ff",
     padding: 30,
     borderRadius: 20,
-
   },
   text: {
     color: "white",
     fontSize: 18,
     textAlign: "center",
-    display: "none"
+    display: "none",
   },
   text1: {
     color: "white",
     fontWeight: "bold",
-    fontSize:30,
+    fontSize: 30,
     textAlign: "center",
     backgroundColor: "#8d071cff",
     padding: 30,
     borderRadius: 20,
-    marginBottom:10,
-    shadowColor:"#ffffff",
-    paddingHorizontal:100
-
-
-  }
+    marginBottom: 10,
+    shadowColor: "#ffffff",
+    paddingHorizontal: 100,
+  },
 });
