@@ -14,37 +14,6 @@ interface UploadedFile {
   uploadedAt: string;
 }
 
-const recentUploads: UploadedFile[] = [
-  {
-    id: '1',
-    name: 'Algorithms Introduction.pdf',
-    type: 'pdf',
-    size: '2.4 MB',
-    uploadedAt: '2 hours ago',
-  },
-  {
-    id: '2',
-    name: 'Data Structures Tutorial.mp4',
-    type: 'video',
-    size: '45.2 MB',
-    uploadedAt: '1 day ago',
-  },
-  {
-    id: '3',
-    name: 'Network Diagram.png',
-    type: 'image',
-    size: '1.1 MB',
-    uploadedAt: '2 days ago',
-  },
-  {
-    id: '4',
-    name: 'Database Normalization.pptx',
-    type: 'presentation',
-    size: '5.8 MB',
-    uploadedAt: '3 days ago',
-  },
-];
-
 const getFileTypeColor = (type: string) => {
   switch (type) {
     case 'video':
@@ -145,13 +114,17 @@ export default function LessonUploadScreen() {
               style={styles.picker}
             >
               <Picker.Item label="Select topic" value="" />
-              <Picker.Item label="Algorithms" value="algorithms" />
-              <Picker.Item label="Data Structures" value="data-structures" />
+              <Picker.Item label="Health/Security" value="health/security" />
+              <Picker.Item label="Data Representation" value="data-representation" />
               <Picker.Item label="Networks" value="networks" />
               <Picker.Item label="Databases" value="databases" />
               <Picker.Item label="Web Development" value="web-dev" />
-              <Picker.Item label="Security" value="security" />
-              <Picker.Item label="AI Basics" value="ai" />
+              <Picker.Item label="Hardware" value="hardware" />
+              <Picker.Item label="SDLC" value="sdlc" />
+              <Picker.Item label="Programming (Pascal)" value="programming-pascal" />
+              <Picker.Item label="Operating Systems" value="operating-systems" />
+              <Picker.Item label="Legal/Ethical" value="legal-ethical" />
+              <Picker.Item label="Logic Gates" value="logic-gates" />
             </Picker>
           </View>
         </View>
@@ -176,7 +149,7 @@ export default function LessonUploadScreen() {
         >
           <Text style={styles.uploadButtonText}>📁 Select Files</Text>
           <Text style={styles.uploadButtonSubtext}>
-            PDF, DOC, PPT, Videos, Images (Max 100MB)
+            PDF, DOC (Max 100MB)
           </Text>
         </TouchableOpacity>
 
@@ -220,39 +193,7 @@ export default function LessonUploadScreen() {
               </Text>
             )}
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.secondaryButton}>
-            <Text style={styles.secondaryButtonText}>Save as Draft</Text>
-          </TouchableOpacity>
         </View>
-      </View>
-
-      {/* Recent Uploads */}
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Recent Uploads</Text>
-        {recentUploads.map((file) => (
-          <View key={file.id} style={styles.recentFileItem}>
-            <View
-              style={[
-                styles.fileIcon,
-                { backgroundColor: getFileTypeColor(file.type) + '20' },
-              ]}
-            >
-              <Text style={{ color: getFileTypeColor(file.type), fontSize: 20 }}>
-                📄
-              </Text>
-            </View>
-            <View style={styles.recentFileInfo}>
-              <View style={styles.recentFileHeader}>
-                <Text style={styles.recentFileName}>{file.name}</Text>
-                <Text style={styles.checkmark}>✓</Text>
-              </View>
-              <Text style={styles.recentFileDetails}>
-                {file.size} · Uploaded {file.uploadedAt}
-              </Text>
-            </View>
-          </View>
-        ))}
       </View>
 
       {/* Quick Stats */}
@@ -263,14 +204,6 @@ export default function LessonUploadScreen() {
           </View>
           <Text style={styles.statValue}>24</Text>
           <Text style={styles.statLabel}>Total Lessons</Text>
-        </View>
-
-        <View style={styles.statCard}>
-          <View style={[styles.statIcon, { backgroundColor: '#F3E8FF' }]}>
-            <Text style={{ fontSize: 24 }}>🎥</Text>
-          </View>
-          <Text style={styles.statValue}>12</Text>
-          <Text style={styles.statLabel}>Video Tutorials</Text>
         </View>
 
         <View style={styles.statCard}>
