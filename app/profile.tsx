@@ -1,7 +1,6 @@
-import { StyleSheet, View, Text, Button } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import { Button, StyleSheet, Text, View } from 'react-native';
 //import { useAnnounceOnFocus } from "./hooks/tts";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 
 
 
@@ -19,6 +18,10 @@ export default function ProfileScreen() {
           {TITLE}
         </Text>
         <Text  style={styles.text}>…your profile content…</Text>
+        <Button
+          title="Teacher Dashboard"
+          onPress={() => router.push("/(drawer)")}
+        />
       </View>
     </>
   );
