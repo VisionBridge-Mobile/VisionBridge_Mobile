@@ -2,7 +2,12 @@
 import { ResizeMode, Video } from "expo-av";
 import * as Haptics from "expo-haptics";
 import { Href, useRouter } from "expo-router";
+<<<<<<< Updated upstream
 import React, { useCallback, useEffect, useRef, useState } from "react";
+=======
+import * as React from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+>>>>>>> Stashed changes
 import { StyleSheet, Text, View } from "react-native";
 import {
   Directions,

@@ -6,23 +6,21 @@
     "orientation": "portrait",
     "scheme": "visionbridge",
     "userInterfaceStyle": "automatic",
-
     "ios": {
       "supportsTablet": true
     },
-
     "android": {
       "edgeToEdgeEnabled": true
     },
-
     "web": {
       "bundler": "metro"
     },
-
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-font",
+      "expo-video",
+      "expo-web-browser"
     ],
-
     "experiments": {
       "typedRoutes": true
     }
