@@ -21,7 +21,7 @@ It includes:
 ## 🏗️ System Architecture
 
 ### 🔹 Overall System Architecture
-![System Architecture](assets/images/wq.png)
+![System Architecture](assets/images/system.png)
 
 
 
