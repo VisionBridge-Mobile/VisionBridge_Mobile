@@ -1,13 +1,8 @@
-// app/index.tsx
 import { ResizeMode, Video } from "expo-av";
 import * as Haptics from "expo-haptics";
 import { Href, useRouter } from "expo-router";
-<<<<<<< Updated upstream
-import React, { useCallback, useEffect, useRef, useState } from "react";
-=======
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
->>>>>>> Stashed changes
 import { StyleSheet, Text, View } from "react-native";
 import {
   Directions,
@@ -64,14 +59,8 @@ function HomeContent({ go }: { go: (path: Href) => void }) {
         >
           Hi, Welcome to Vision Bridge
         </SpeakableText>
-        <View
-          style={{
-            flex: 1,
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: "black",
-          }}
-        >
+
+        <View style={styles.videoContainer}>
           <Text style={styles.text1}>Modules</Text>
           <Video
             source={require("../assets/images/up.mp4")}
@@ -110,6 +99,7 @@ export default function Index() {
     try {
       router.push(path);
     } finally {
+      // Prevents double-triggering navigation on accidental quick gestures
       setTimeout(() => (navLockRef.current = false), 500);
     }
   };
@@ -130,6 +120,12 @@ const styles = StyleSheet.create({
     padding: 15,
     gap: 8,
   },
+  videoContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "black",
+  },
   title: {
     color: "yellow",
     fontSize: 25,
@@ -144,7 +140,7 @@ const styles = StyleSheet.create({
     color: "white",
     fontSize: 18,
     textAlign: "center",
-    display: "none",
+    display: "none", // Hidden visually but read by SpeakableText
   },
   text1: {
     color: "white",
