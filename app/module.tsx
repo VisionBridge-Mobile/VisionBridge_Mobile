@@ -1,11 +1,27 @@
 // app/module.tsx
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { View, Text, Pressable, StyleSheet, findNodeHandle } from "react-native";
-import { router, Stack, Href } from "expo-router";
-import { Directions, Gesture, GestureDetector } from "react-native-gesture-handler";
-import { runOnJS } from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
+import { Href, router, Stack } from "expo-router";
 import * as Speech from "expo-speech";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  findNodeHandle,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import {
+  Directions,
+  Gesture,
+  GestureDetector,
+} from "react-native-gesture-handler";
+import { runOnJS } from "react-native-reanimated";
 
 type Mod = { id: string; title: string; subtitle?: string };
 
@@ -32,8 +48,15 @@ export default function ModulesScreen() {
 
   // Layout tracking
   const containerRef = useRef<View | null>(null);
-  const containerAbsRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
-  const itemLayoutsRef = useRef<Record<number, { x: number; y: number; width: number; height: number }>>({});
+  const containerAbsRef = useRef<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+  const itemLayoutsRef = useRef<
+    Record<number, { x: number; y: number; width: number; height: number }>
+  >({});
 
   // Prevent repeated announcements
   const lastAnnouncedRef = useRef<number>(-1);
@@ -118,11 +141,20 @@ export default function ModulesScreen() {
 
   /* -------------------- Layout measurement -------------------- */
   const measureContainer = () => {
-    const node = containerRef.current ? findNodeHandle(containerRef.current) : null;
+    const node = containerRef.current
+      ? findNodeHandle(containerRef.current)
+      : null;
     if (!node) return;
 
     (containerRef.current as any).measure?.(
-      (_fx: number, _fy: number, width: number, height: number, px: number, py: number) => {
+      (
+        _fx: number,
+        _fy: number,
+        width: number,
+        height: number,
+        px: number,
+        py: number
+      ) => {
         containerAbsRef.current = { x: px, y: py, width, height };
       }
     );
@@ -138,7 +170,10 @@ export default function ModulesScreen() {
   const announceIndex = useCallback(
     (idx: number) => {
       const now = Date.now();
-      if (idx === lastAnnouncedRef.current && now - lastAnnouncedTimeRef.current < ANNOUNCE_MIN_MS) {
+      if (
+        idx === lastAnnouncedRef.current &&
+        now - lastAnnouncedTimeRef.current < ANNOUNCE_MIN_MS
+      ) {
         return;
       }
 
@@ -167,7 +202,12 @@ export default function ModulesScreen() {
         const right = left + child.width;
         const bottom = top + child.height;
 
-        if (pageX >= left && pageX <= right && pageY >= top && pageY <= bottom) {
+        if (
+          pageX >= left &&
+          pageX <= right &&
+          pageY >= top &&
+          pageY <= bottom
+        ) {
           runOnJS(announceIndex)(i);
           return;
         }
@@ -230,8 +270,8 @@ export default function ModulesScreen() {
                 <Pressable
                   key={m.id}
                   onLayout={(e) => onItemLayout(idx, e)}
-                  onPress={() => focusAndAnnounce(idx)}          // tap = announce
-                  onLongPress={() => goToModule(idx)}            // long press = open
+                  onPress={() => focusAndAnnounce(idx)} // tap = announce
+                  onLongPress={() => goToModule(idx)} // long press = open
                   delayLongPress={400}
                   style={[styles.row, focused && styles.rowFocused]}
                   accessibilityRole="button"
@@ -239,15 +279,17 @@ export default function ModulesScreen() {
                   accessibilityState={{ selected: focused }}
                 >
                   <Text style={styles.title}>{m.title}</Text>
-                  {m.subtitle ? <Text style={styles.subtitle}>{m.subtitle}</Text> : null}
+                  {m.subtitle ? (
+                    <Text style={styles.subtitle}>{m.subtitle}</Text>
+                  ) : null}
                 </Pressable>
               );
             })}
           </View>
 
           <Text style={styles.hint}>
-            Tip: Drag your finger across the screen to explore. Tap to hear a module.
-            Long-press to open it. Swipe left anywhere to go back.
+            Tip: Drag your finger across the screen to explore. Tap to hear a
+            module. Long-press to open it. Swipe left anywhere to go back.
           </Text>
         </View>
       </GestureDetector>
@@ -257,7 +299,12 @@ export default function ModulesScreen() {
 
 /* -------------------- Styles -------------------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "black", padding: 16, paddingStart: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: "black",
+    padding: 16,
+    paddingStart: 20,
+  },
   list: { gap: 50, marginTop: 6 },
   row: {
     borderRadius: 14,

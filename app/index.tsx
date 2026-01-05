@@ -1,6 +1,6 @@
 import { ResizeMode, Video } from "expo-av";
 import * as Haptics from "expo-haptics";
-import { Href, useRouter } from "expo-router";
+import { Href, router, useRouter } from "expo-router";
 import * as React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -62,6 +62,12 @@ function HomeContent({ go }: { go: (path: Href) => void }) {
 
         <View style={styles.videoContainer}>
           <Text style={styles.text1}>Modules</Text>
+          <View>
+            <Text onPress={() => router.push("/settings")} style={styles.text1}>
+              diusydiusd
+            </Text>
+          </View>
+
           <Video
             source={require("../assets/images/up.mp4")}
             style={{ width: 150, height: 150 }}

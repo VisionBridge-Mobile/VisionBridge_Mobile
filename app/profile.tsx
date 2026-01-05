@@ -1,8 +1,7 @@
-import { Button, StyleSheet, Text, View } from 'react-native';
+import { Button, StyleSheet, Text, View } from "react-native";
 //import { useAnnounceOnFocus } from "./hooks/tts";
 import { router, Stack } from "expo-router";
-
-
+import React from "react";
 
 export default function ProfileScreen() {
   const TITLE = "Profile";
@@ -17,7 +16,7 @@ export default function ProfileScreen() {
         <Text accessibilityRole="header" style={styles.title}>
           {TITLE}
         </Text>
-        <Text  style={styles.text}>…your profile content…</Text>
+        <Text style={styles.text}>…your profile content…</Text>
         <Button
           title="Teacher Dashboard"
           onPress={() => router.push("/(drawer)")}
