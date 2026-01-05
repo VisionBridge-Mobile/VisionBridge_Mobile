@@ -1,11 +1,12 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
-  useEffect,
-  useCallback,
 } from "react";
+
 import { Text, TextProps } from "react-native";
 import { TTS } from "../hooks/tts";
 
@@ -13,7 +14,10 @@ type Item = { id: string; text: string; order: number };
 
 type Ctx = {
   register: (id: string, text: string, order?: number) => () => void;
-  readScreen: (opts?: { haptic?: boolean; separator?: string }) => Promise<void>;
+  readScreen: (opts?: {
+    haptic?: boolean;
+    separator?: string;
+  }) => Promise<void>;
   stop: () => void;
 };
 
@@ -40,7 +44,7 @@ export function SpeakableProvider({ children }: { children: React.ReactNode }) {
     async ({ haptic = true, separator = ". " } = {}) => {
       const registry = registryRef.current;
       const items = [...registry.values()].sort((a, b) => a.order - b.order);
-      const text = items.map(i => i.text).join(separator);
+      const text = items.map((i) => i.text).join(separator);
       await TTS.speak(text, { haptic });
     },
     [] // only uses registryRef and TTS import
@@ -60,7 +64,8 @@ export function SpeakableProvider({ children }: { children: React.ReactNode }) {
 
 export function useReadScreen() {
   const ctx = useContext(SpeakCtx);
-  if (!ctx) throw new Error("useReadScreen must be used inside <SpeakableProvider>");
+  if (!ctx)
+    throw new Error("useReadScreen must be used inside <SpeakableProvider>");
   return ctx;
 }
 

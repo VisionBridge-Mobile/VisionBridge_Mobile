@@ -2,7 +2,7 @@
 import { ResizeMode, Video } from "expo-av";
 import * as Haptics from "expo-haptics";
 import { Href, useRouter } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import {
   Directions,
@@ -15,7 +15,6 @@ import {
   SpeakableText,
   useReadScreen,
 } from "./components/SpeakableProvider";
-import React = require("react");
 
 function HomeContent({ go }: { go: (path: Href) => void }) {
   const { readScreen, stop } = useReadScreen();
